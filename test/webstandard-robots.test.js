@@ -18,6 +18,7 @@ describe('RobotsTxt API Complex Example', () => {
         // Add a sitemap
         robots.addSitemap('https://example.com/sitemap.xml');
 
+        // Updated expected output with the new format: blank lines between groups and before the sitemap
         const expectedOutput = `User-agent: *
 Allow: /
 Disallow: /private
@@ -31,6 +32,8 @@ Sitemap: https://example.com/sitemap.xml`;
 
         // Normalize the output by stripping newlines and spaces
         const normalizeOutput = (str) => str.replace(/\r\n/g, '\n').trim(); // Convert to Unix-style newlines and remove trailing spaces
+        console.log('Generated Output:\n', robots.output());
+        //console.log("Expected Output:\n", expectedOutput);
 
         // Compare normalized output
         expect(normalizeOutput(robots.output())).toBe(

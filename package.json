@@ -1,10 +1,10 @@
 {
     "name": "@webstandard/robots",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "homepage": "https://alexstevovich.com/r/webstandard-robots-nodejs",
     "author": {
         "name": "Alex Stevovich",
-        "email": "alex.stevovich@gmail.com",
+        "email": "dev@alexstevovich.com",
         "url": "https://alexstevovich.com"
     },
     "description": "A standards-compliant generator for producing robots.txt files",
@@ -30,8 +30,6 @@
         "search-engines",
         "crawler",
         "crawl-rules",
-        "fluent-api",
-        "javascript",
         "web",
         "automation",
         "web-crawling",

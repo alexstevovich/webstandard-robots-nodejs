@@ -19,122 +19,320 @@
  * limitations under the License.
  */
 
-export default class RobotsTxt {
-    /**
-     * Creates a new `RobotsTxt` instance.
-     */
+export class RobotsTxt {
     constructor() {
-        /** @type {Map<string, RobotsTxtUserAgent>} Holds user-agent rules */
-        this.userAgents = new Map();
-
-        /** @type {Set<string>} Holds sitemap URLs */
+        /** @type {RobotsTxtGroup[]} */
+        this.groups = [];
+        /** @type {Set<string>} */
         this.sitemaps = new Set();
+        /** @type {string|null} */
+        this.host = null;
     }
 
     /**
-     * Adds a sitemap URL entry.
-     * @param {string} url - The URL of the sitemap.
-     * @returns {this} Returns the current instance for method chaining.
+     * Add a RobotsTxtGroup instance.
+     * If another group with the same agent exists, merge their rules.
+     * @param {RobotsTxtGroup} group
      */
-    sitemap(url) {
-        this.sitemaps.add(`Sitemap: ${url}`);
-
-        return this;
+    addGroup(group) {
+        if (!(group instanceof RobotsTxtGroup)) {
+            throw new Error('addGroup() expects a RobotsTxtGroup instance.');
+        }
+        const existing = this.groups.find((g) => g.agent === group.agent);
+        if (existing) existing.merge(group);
+        else this.groups.push(group);
     }
 
     /**
-     * Retrieves or creates a user-agent entry.
-     * @param {string} name - The user-agent name (e.g., `Googlebot`, `*`).
-     * @returns {RobotsTxtUserAgent} Returns an instance of `RobotsTxtUserAgent` for chaining.
+     * Add a group from JSON.
+     * @param {object|string} json
      */
-    agent(name) {
-        if (!this.userAgents.has(name)) {
-            this.userAgents.set(name, new RobotsTxtUserAgent(name));
-        }
-
-        return this.userAgents.get(name);
+    addGroupFromJSON(json) {
+        const group = RobotsTxtGroup.fromJSON(json);
+        this.addGroup(group);
     }
 
     /**
-     * Generates the `robots.txt` content.
-     * @param {Object} [options] - Options for generating the output.
-     * @param {boolean} [options.force=false] - If `true`, generates output even if no agents are defined.
-     * @returns {string} The generated `robots.txt` content.
-     * @throws {Error} If no user-agent is defined and `force` is not `true`.
+     * Merge another RobotsTxt into this one.
+     * @param {RobotsTxt} other
      */
-    output(options = { force: false }) {
-        if (this.userAgents.size === 0 && !options.force) {
-            throw new Error(
-                `No User-agent defined in robots.txt. Add one with:\n\n` +
-                    `    robots.agent('*').allow('/');\n` +
-                    `\nOr use { force: true } to suppress this error.`,
-            );
+    merge(other) {
+        if (!(other instanceof RobotsTxt)) {
+            throw new Error('merge() expects a RobotsTxt instance.');
+        }
+        for (const g of other.groups) this.addGroup(g);
+        for (const s of other.sitemaps) this.sitemaps.add(s);
+        if (other.host) this.host = other.host;
+    }
+
+    /**
+     * Add a full fragment of groups/sitemaps from a JSON object.
+     * @param {object|string} fragment
+     */
+    addFragment(fragment) {
+        const data =
+            typeof fragment === 'string' ? JSON.parse(fragment) : fragment;
+        if (Array.isArray(data.groups)) {
+            for (const g of data.groups) this.addGroupFromJSON(g);
+        }
+        if (Array.isArray(data.sitemaps)) {
+            for (const s of data.sitemaps) this.sitemaps.add(s);
+        }
+        if (data.host) this.host = data.host;
+    }
+
+    /**
+     * Add a sitemap entry.
+     * @param {string} url
+     */
+    addSitemap(url) {
+        if (typeof url !== 'string')
+            throw new Error('Sitemap URL must be a string.');
+        this.sitemaps.add(url);
+    }
+
+    /**
+     * Set the Host directive.
+     * @param {string} host
+     */
+    setHost(host) {
+        if (typeof host !== 'string') throw new Error('Host must be a string.');
+        this.host = host;
+    }
+
+    /**
+     * Convert to JSON-safe representation.
+     * @returns {object}
+     */
+    toJSON() {
+        return {
+            groups: this.groups.map((g) => g.toJSON()),
+            sitemaps: [...this.sitemaps],
+            host: this.host,
+        };
+    }
+
+    /**
+     * Create a RobotsTxt from JSON.
+     * @param {object|string} json
+     * @returns {RobotsTxt}
+     */
+    static fromJSON(json) {
+        const data = typeof json === 'string' ? JSON.parse(json) : json;
+        const robots = new RobotsTxt();
+        if (data.groups) {
+            for (const g of data.groups) robots.addGroupFromJSON(g);
+        }
+        if (data.sitemaps) {
+            for (const s of data.sitemaps) robots.addSitemap(s);
+        }
+        if (data.host) robots.setHost(data.host);
+        return robots;
+    }
+
+    /**
+     * Output text form of robots.txt.
+     * @param {{force?: boolean}} [options]
+     * @returns {string}
+     */
+    output() {
+        const lines = [];
+
+        // Iterate over each group and push its output
+        for (let i = 0; i < this.groups.length; i++) {
+            lines.push(this.groups[i].output());
+            // Add a blank line after each group except the last one
+            if (i < this.groups.length - 1) {
+                lines.push('');
+            }
         }
 
-        let output = '';
-        for (const agent of this.userAgents.values()) {
-            output += agent.output() + '\n\n';
+        // Add a blank line before the host and sitemap sections (if they exist)
+        if (this.host || this.sitemaps.size > 0) {
+            lines.push('');
         }
-        output += [...this.sitemaps].join('\n');
 
-        return output.trim();
+        // Add the host if it exists
+        if (this.host) lines.push(`Host: ${this.host}`);
+
+        // Add sitemaps if they exist
+        if (this.sitemaps.size > 0) {
+            for (const s of this.sitemaps) {
+                lines.push(`Sitemap: ${s}`);
+            }
+        }
+
+        return lines.join('\n').trim(); // Ensure no trailing newline
     }
 }
 
 /**
- * Represents rules for a specific user-agent in `robots.txt`.
+ * Represents one User-agent group block.
  */
-export class RobotsTxtUserAgent {
+export class RobotsTxtGroup {
     /**
-     * Creates a new user-agent entry.
-     * @param {string} name - The name of the user-agent (e.g., `Googlebot`, `*`).
+     * @param {string} agent
+     * @param {RobotsTxtRule[]} [rules=[]]
      */
-    constructor(name) {
-        /** @type {string} The name of the user-agent. */
-        this.name = name;
-
-        /** @type {string[]} Stores allow/disallow rules and directives. */
+    constructor(agent, rules = []) {
+        if (typeof agent !== 'string') {
+            throw new Error('agent must be a string.');
+        }
+        /** @type {string} */
+        this.agent = agent;
+        /** @type {RobotsTxtRule[]} */
         this.rules = [];
+        for (const rule of rules) this.addRule(rule);
     }
 
     /**
-     * Allows access to a path.
-     * @param {string} path - The path to allow.
-     * @returns {this} Returns the current instance for method chaining.
+     * Add a RobotsTxtRule instance.
+     * @param {RobotsTxtRule} rule
      */
-    allow(path) {
-        this.rules.push(`Allow: ${path}`);
+    addRule(rule) {
+        if (!(rule instanceof RobotsTxtRule)) {
+            throw new Error('addRule() expects a RobotsTxtRule instance.');
+        }
+        const exists = this.rules.some(
+            (r) => r.directive === rule.directive && r.value === rule.value,
+        );
+        if (!exists) this.rules.push(rule);
+    }
 
+    /**
+     * Merge another group (same agent).
+     * @param {RobotsTxtGroup} other
+     */
+    merge(other) {
+        if (!(other instanceof RobotsTxtGroup)) {
+            throw new Error('merge() expects a RobotsTxtGroup instance.');
+        }
+        if (this.agent !== other.agent) return;
+        for (const rule of other.rules) this.addRule(rule);
+    }
+
+    /**
+     * Add an Allow directive helper.
+     * @param {string} path
+     */
+    addAllow(path) {
+        this.addRule(RobotsTxtRule.allow(path));
         return this;
     }
 
     /**
-     * Disallows access to a path.
-     * @param {string} path - The path to disallow.
-     * @returns {this} Returns the current instance for method chaining.
+     * Add a Disallow directive helper.
+     * @param {string} path
      */
-    disallow(path) {
-        this.rules.push(`Disallow: ${path}`);
-
+    addDisallow(path) {
+        this.addRule(RobotsTxtRule.disallow(path));
         return this;
     }
 
     /**
-     * Sets a crawl delay for the user-agent.
-     * @param {number} seconds - The delay time in seconds.
-     * @returns {this} Returns the current instance for method chaining.
+     * Add a Crawl-delay directive helper.
+     * @param {number} seconds
      */
-    delay(seconds) {
-        this.rules.push(`Crawl-delay: ${seconds}`);
-
+    addCrawlDelay(seconds) {
+        this.addRule(RobotsTxtRule.crawlDelay(seconds));
         return this;
     }
 
     /**
-     * Generates the `robots.txt` rules for this user-agent.
-     * @returns {string} The formatted `robots.txt` user-agent block.
+     * Serialize to JSON.
+     * @returns {object}
+     */
+    toJSON() {
+        return {
+            agent: this.agent,
+            rules: this.rules.map((r) => r.toJSON()),
+        };
+    }
+
+    /**
+     * Recreate from JSON.
+     * @param {object|string} json
+     * @returns {RobotsTxtGroup}
+     */
+    static fromJSON(json) {
+        const data = typeof json === 'string' ? JSON.parse(json) : json;
+        const rules = (data.rules || []).map((r) => RobotsTxtRule.fromJSON(r));
+        return new RobotsTxtGroup(data.agent, rules);
+    }
+
+    /**
+     * Output as text.
+     * @returns {string}
      */
     output() {
-        return `User-agent: ${this.name}\n` + this.rules.join('\n');
+        const lines = [`User-agent: ${this.agent}`];
+        for (const rule of this.rules) lines.push(rule.output());
+        return lines.join('\n');
     }
 }
+
+/**
+ * Represents a single rule like "Disallow: /admin".
+ */
+export class RobotsTxtRule {
+    /**
+     * @param {"Allow"|"Disallow"|"Crawl-delay"} directive
+     * @param {string|number} value
+     */
+    constructor(directive, value) {
+        const valid = ['Allow', 'Disallow', 'Crawl-delay'];
+        if (!valid.includes(directive)) {
+            throw new Error(`Invalid directive: ${directive}`);
+        }
+        if (typeof value !== 'string' && typeof value !== 'number') {
+            throw new Error('value must be a string or number.');
+        }
+        this.directive = directive;
+        this.value = value;
+    }
+
+    /**
+     * Static helper to create an Allow rule.
+     * @param {string} path
+     */
+    static allow(path) {
+        return new RobotsTxtRule('Allow', path);
+    }
+
+    /**
+     * Static helper to create a Disallow rule.
+     * @param {string} path
+     */
+    static disallow(path) {
+        return new RobotsTxtRule('Disallow', path);
+    }
+
+    /**
+     * Static helper to create a Crawl-delay rule.
+     * @param {number} seconds
+     */
+    static crawlDelay(seconds) {
+        return new RobotsTxtRule('Crawl-delay', seconds);
+    }
+
+    toJSON() {
+        return { directive: this.directive, value: this.value };
+    }
+
+    static fromJSON(json) {
+        const data = typeof json === 'string' ? JSON.parse(json) : json;
+        return new RobotsTxtRule(data.directive, data.value);
+    }
+
+    output() {
+        return `${this.directive}: ${this.value}`;
+    }
+}
+
+const WebStandardRobots = {
+    RobotsTxt: RobotsTxt,
+    Group: RobotsTxtGroup,
+    Rule: RobotsTxtRule,
+};
+
+export default WebStandardRobots;
