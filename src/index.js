@@ -1,6 +1,6 @@
 /*
  * @webstandard/robots
- * https://alexstevovich.com/r/webstandard-robots-nodejs
+ * https://alexstevovich.com/a/webstandard-robots-nodejs
  *
  * ~ Define the crawl zones. Control the AO.
  *

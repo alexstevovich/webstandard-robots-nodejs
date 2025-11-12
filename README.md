@@ -1,10 +1,15 @@
 # @webstandard/robots
 
-**Canonical URL:**[https://alexstevovich.com/r/webstandard-robots-nodejs](https://alexstevovich.com/r/webstandard-robots-nodejs)
+**Canonical URL:**[https://alexstevovich.com/a/webstandard-robots-nodejs](https://alexstevovich.com/a/webstandard-robots-nodejs)
+
+**Software URL:**  
+[https://midnightcitylights.com/software/webstandard-robots-nodejs](https://midnightcitylights.com/software/webstandard-robots-nodejs)
 
 **@webstandard/robots** is a minimal, standards-compliant generator for producing `robots.txt` files in Node.js. It provides clean classes for defining crawler rules, user-agents, crawl delays, and sitemap references, then outputs the canonical `robots.txt` text exactly as search engines expect.
 
 Built to be small, predictable, and future-proof — no dependencies, no magic, just precise control over your site’s crawl zones.
+
+---
 
 ## Installation
 
@@ -56,11 +61,11 @@ Sitemap: https://example.com/sitemap.xml`;
 
 I provide a package for `sitemap.xml` as well.
 
-[https://alexstevovich.com/r/webstandard-sitemap-nodejs](https://alexstevovich.com/r/webstandard-sitemap-nodejs)
+[https://alexstevovich.com/a/webstandard-sitemap-nodejs](https://alexstevovich.com/a/webstandard-sitemap-nodejs)
 
 ## Ready for priority one clearance?
 
-This package is also mirrored here: [RobotsForce1](https://alexstevovich.com/r/robotsforce1-nodejs)
+This package is also mirrored here: [RobotsForce1](https://alexstevovich.com/a/robotsforce1-nodejs)
 
 ## License
 
